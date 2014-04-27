@@ -1,0 +1,29 @@
+FROM debian:stable
+MAINTAINER Arthur Axel fREW Schmidt <frioux@gmail.com>
+
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update && apt-get upgrade -y -q
+RUN apt-get install -y -q apache2 libapache2-mod-php5 php5-mysql \
+   wget ca-certificates openssh-server supervisor vim
+
+RUN mkdir -p /var/run/sshd
+RUN mkdir -p /var/log/supervisor
+
+RUN wget https://github.com/gothfox/Tiny-Tiny-RSS/archive/<: $ttrss_version :>.tar.gz -q
+RUN tar -xf <: $ttrss_version :>.tar.gz -C /var/www/
+RUN mv /var/www/Tiny-Tiny-RSS-<: $ttrss_version :> /var/www/rss
+ADD config.php /var/www/rss/config.php
+RUN chown -R root.www-data /var/www/rss/
+RUN chmod -R g+w,o+ /var/www/rss/
+
+ADD site /etc/apache2/sites-available/rss
+ADD db-deploy.php /var/www/rss/install/db-deploy.php
+RUN mkdir /root/.ssh/
+ADD authorized_keys /root/.ssh/authorized_keys
+RUN a2dissite default
+RUN a2ensite rss
+
+ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+EXPOSE 22 80
+
+CMD ["/usr/bin/supervisord"]
